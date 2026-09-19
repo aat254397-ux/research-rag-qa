@@ -3,8 +3,10 @@ import unittest
 from retrieval import (
     build_retrieval_index,
     build_vocabulary,
+    cosine_similarity,
     document_frequency,
     inverse_document_frequency,
+    retrieve_relevant_chunks,
     text_to_tfidf_vector,
     tokenize_text,
 )
@@ -38,6 +40,9 @@ class TestRetrievalIndex(unittest.TestCase):
                 "end": 6,
             },
         ]
+        self.retrieval_index = build_retrieval_index(
+            self.knowledge_chunks
+        )
 
     def test_tokenizes_lowercase_and_punctuation(self):
         words = tokenize_text(
@@ -142,6 +147,26 @@ class TestRetrievalIndex(unittest.TestCase):
             "a.txt",
         )
         self.assertEqual(
+            indexed_chunk["path"],
+            "sample_docs/a.txt",
+        )
+        self.assertEqual(
+            indexed_chunk["chunk_id"],
+            1,
+        )
+        self.assertEqual(
+            indexed_chunk["start"],
+            0,
+        )
+        self.assertEqual(
+            indexed_chunk["end"],
+            16,
+        )
+        self.assertEqual(
+            indexed_chunk["text"],
+            "Python Python 项目",
+        )
+        self.assertEqual(
             len(indexed_chunk["vector"]),
             len(retrieval_index["vocabulary"]),
         )
@@ -157,6 +182,86 @@ class TestRetrievalIndex(unittest.TestCase):
     def test_rejects_empty_knowledge_chunks(self):
         with self.assertRaises(ValueError):
             build_retrieval_index([])
+
+    def test_cosine_similarity_same_direction(self):
+        similarity_score = cosine_similarity(
+            [1, 0],
+            [2, 0],
+        )
+
+        self.assertAlmostEqual(
+            similarity_score,
+            1.0,
+        )
+
+    def test_retrieves_most_relevant_chunk_first(self):
+        retrieval_results = retrieve_relevant_chunks(
+            "Python 虚拟环境",
+            self.retrieval_index,
+            top_k=2,
+            min_score=0.0,
+        )
+
+        self.assertEqual(
+            retrieval_results[0]["chunk_id"],
+            2,
+        )
+        self.assertEqual(
+            retrieval_results[0]["source"],
+            "a.txt",
+        )
+
+    def test_limits_results_with_top_k(self):
+        retrieval_results = retrieve_relevant_chunks(
+            "Python 项目",
+            self.retrieval_index,
+            top_k=1,
+            min_score=0.0,
+        )
+
+        self.assertEqual(
+            len(retrieval_results),
+            1,
+        )
+
+    def test_filters_results_with_min_score(self):
+        retrieval_results = retrieve_relevant_chunks(
+            "Python 虚拟环境",
+            self.retrieval_index,
+            top_k=3,
+            min_score=0.99,
+        )
+
+        self.assertEqual(
+            len(retrieval_results),
+            1,
+        )
+        self.assertEqual(
+            retrieval_results[0]["chunk_id"],
+            2,
+        )
+
+    def test_rejects_question_without_indexed_terms(self):
+        with self.assertRaises(ValueError):
+            retrieve_relevant_chunks(
+                "天气 晴朗",
+                self.retrieval_index,
+            )
+
+    def test_rejects_invalid_query_settings(self):
+        with self.assertRaises(ValueError):
+            retrieve_relevant_chunks(
+                "Python",
+                self.retrieval_index,
+                top_k=0,
+            )
+
+        with self.assertRaises(ValueError):
+            retrieve_relevant_chunks(
+                "Python",
+                self.retrieval_index,
+                min_score=1.1,
+            )
 
 
 if __name__ == "__main__":
