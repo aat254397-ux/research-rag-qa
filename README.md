@@ -15,14 +15,14 @@
 
 ## 当前阶段
 
-Day 16：文档读取已经完成，正在实现保留来源和位置的文本切片。
+Day 17：文档读取和文本切片已经完成，正在为切片建立可复用的 TF-IDF 检索索引。
 
 计划结构：
 
 - `sample_docs/`：用于本地验证的示例文档。
 - `tests/`：项目测试。
 - `document_loader.py`：读取并验证文档。
-- `text_chunker.py`：后续加入文本切片。
-- `retrieval.py`：后续加入索引与检索。
+- `text_chunker.py`：按字符范围切片并保留来源和位置。
+- `retrieval.py`：正在加入索引与检索。
 - `prompt_builder.py`：后续加入 Prompt 组装。
 - `app.py`：后续串联完整问答流程。
