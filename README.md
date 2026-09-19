@@ -15,7 +15,7 @@
 
 ## 当前阶段
 
-Day 18：文档索引已经完成，正在使用固定词表、IDF 和余弦相似度执行问题检索。
+Day 19：文档索引与问题检索已经完成，正在把检索结果和问题组装成模型可用的 Prompt。
 
 计划结构：
 
@@ -24,5 +24,5 @@ Day 18：文档索引已经完成，正在使用固定词表、IDF 和余弦相�
 - `document_loader.py`：读取并验证文档。
 - `text_chunker.py`：按字符范围切片并保留来源和位置。
 - `retrieval.py`：建立 TF-IDF 索引，并正在加入问题检索。
-- `prompt_builder.py`：后续加入 Prompt 组装。
+- `prompt_builder.py`：正在加入检索上下文与 Prompt 组装。
 - `app.py`：后续串联完整问答流程。
