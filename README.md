@@ -15,7 +15,7 @@
 
 ## 当前阶段
 
-Day 19：文档索引与问题检索已经完成，正在把检索结果和问题组装成模型可用的 Prompt。
+Day 20：已将文档读取、切片、索引、检索和 Prompt 构建串联成完整主流程。
 
 计划结构：
 
@@ -23,6 +23,6 @@ Day 19：文档索引与问题检索已经完成，正在把检索结果和问�
 - `tests/`：项目测试。
 - `document_loader.py`：读取并验证文档。
 - `text_chunker.py`：按字符范围切片并保留来源和位置。
-- `retrieval.py`：建立 TF-IDF 索引，并正在加入问题检索。
-- `prompt_builder.py`：正在加入检索上下文与 Prompt 组装。
-- `app.py`：后续串联完整问答流程。
+- `retrieval.py`：建立 TF-IDF 索引并执行问题检索。
+- `prompt_builder.py`：构建检索上下文与完整 Prompt。
+- `app.py`：串联文档读取、切片、索引、检索与 Prompt 构建流程。
