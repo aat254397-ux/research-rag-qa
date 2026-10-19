@@ -43,3 +43,26 @@ Day 20：已将文档读取、切片、索引、检索和 Prompt 构建串联成
 运行全部测试：
 
     python -m unittest discover -s tests -v
+## HTTP 接口
+
+安装依赖：
+
+    python -m pip install -r requirements.txt
+
+启动开发服务：
+
+    python -m uvicorn api:api --reload --host 127.0.0.1 --port 8000
+
+接口文档：http://127.0.0.1:8000/docs
+
+- GET /health：检查服务能否响应。
+- POST /ask：提交问题，返回模拟答案和实际检索到的参考资料。
+- 当前尚未调用真实模型。
+
+请求字段：
+
+- question：必填，去除首尾空白后为 1～2000 个字符。
+- top_k：默认 2，允许 1～10。
+- min_score：默认 0.1，允许 0～1。
+
+当前共 48 项自动化测试通过。
