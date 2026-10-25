@@ -2,10 +2,53 @@ import unittest
 
 from fastapi.testclient import TestClient
 
-from api import api
+from api import create_app
+
+
+# 测试使用示例库，不读取或覆盖正式论文索引。
+api = create_app(index_path=None)
 
 
 class TestDocumentQaApi(unittest.TestCase):
+    def test_search_returns_ranked_references_without_answer(self):
+        with TestClient(api) as client:
+            response = client.post(
+                "/search",
+                json={"question": "  Python  ", "top_k": 1},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["question"], "Python")
+        self.assertEqual(data["match_count"], 1)
+        self.assertEqual(len(data["references"]), 1)
+        self.assertNotIn("answer", data)
+        reference = data["references"][0]
+        self.assertEqual(reference["rank"], 1)
+        self.assertEqual(reference["source"], "python_venv.txt")
+        self.assertGreaterEqual(reference["score"], 0.1)
+        self.assertIn("text", reference)
+        self.assertNotIn("vector", reference)
+
+    def test_search_returns_empty_list_when_threshold_filters_all_chunks(self):
+        with TestClient(api) as client:
+            response = client.post(
+                "/search",
+                json={"question": "Python", "min_score": 1.0},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["match_count"], 0)
+        self.assertEqual(response.json()["references"], [])
+
+    def test_search_rejects_invalid_settings(self):
+        with TestClient(api) as client:
+            response = client.post(
+                "/search", json={"question": "Python", "top_k": 0}
+            )
+
+        self.assertEqual(response.status_code, 422)
+
     def test_health_check(self):
         with TestClient(api) as client:
             response = client.get("/health")

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="本地科研文献问答：E5 语义检索、Cross-Encoder 重排与 DeepSeek 回答。">
+  <title>Research QA · 科研文献问答</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/styles.css">
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Research QA 首页">
+      <span class="brand-mark" aria-hidden="true">R<span>Q</span></span>
+      <span>Research QA<small>科研文献问答工作台</small></span>
+    </a>
+    <div class="topbar-right">
+      <span class="local-tag">本地文献 · 来源可追溯</span>
+      <a href="/docs" target="_blank" rel="noopener">接口文档 ↗</a>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <aside class="sidebar" aria-label="文献库与检索设置">
+      <section class="library-section">
+        <div class="section-title"><h2>我的文献库</h2><button id="refresh-status" class="text-button" type="button">刷新</button></div>
+        <div class="library-stats" aria-label="文献库统计">
+          <div><strong id="document-count">—</strong><span>篇文献</span></div>
+          <div><strong id="page-count">—</strong><span>页 PDF</span></div>
+          <div><strong id="chunk-count">—</strong><span>个切片</span></div>
+        </div>
+        <ul id="document-list" class="document-list"><li class="muted">正在读取文献库状态…</li></ul>
+        <p id="storage-status" class="storage-note">索引状态读取中</p>
+        <details class="import-panel">
+          <summary>加载 / 更换文献 <span aria-hidden="true">＋</span></summary>
+          <label for="document-paths">本机文件完整路径，一行一个</label>
+          <textarea id="document-paths" rows="4" placeholder="D:\papers\example.pdf" spellcheck="false"></textarea>
+          <p class="field-note">加载会替换当前文献库；支持 PDF、TXT、MD。这里不是文件上传。</p>
+          <button id="load-documents" class="secondary-button full-width" type="button">加载文献</button>
+        </details>
+        <button id="build-embedding" class="secondary-button full-width" type="button" disabled>读取语义索引状态中…</button>
+      </section>
+
+      <section class="settings-section">
+        <div class="section-title"><h2>检索设置</h2><span class="subtle-label">可实时切换</span></div>
+        <label for="retriever">检索方式</label>
+        <select id="retriever">
+          <option value="embedding" selected>E5 · 多语言语义检索</option>
+          <option value="tfidf">TF-IDF · 词面匹配</option>
+        </select>
+        <label class="checkbox-row" for="rerank"><input id="rerank" type="checkbox" checked><span>启用 Cross-Encoder 重排</span></label>
+        <div class="number-fields">
+          <div><label for="candidate-k">候选数量</label><input id="candidate-k" type="number" value="10" min="1" max="50" step="1" required></div>
+          <div><label for="top-k">最终片段数</label><input id="top-k" type="number" value="3" min="1" max="10" step="1" required></div>
+        </div>
+        <label for="min-score">最低检索分数 <span class="optional">可选</span></label>
+        <input id="min-score" type="number" min="-1" max="1" step="any" placeholder="留空使用后端默认值">
+        <p class="field-note">先取候选，再重排选出最终片段。最低分数用于初次检索，不用于重排。</p>
+      </section>
+      <p class="sidebar-footer">本地 E5 / Cross-Encoder<br>DeepSeek 负责生成答案 · API v0.9.0</p>
+    </aside>
+
+    <main class="main-content">
+      <div class="workspace-heading">
+        <div><p class="eyebrow">DOCUMENT QUESTION ANSWERING</p><h1>从问题出发，回到原文。</h1><p class="intro">检索你的文献，得到带来源的回答。</p></div>
+        <span id="index-badge" class="status-badge" data-tone="neutral">连接中</span>
+      </div>
+
+      <div class="pipeline" aria-label="文献问答流程">
+        <span>01 文献切片</span><span aria-hidden="true">→</span><span id="retrieval-stage">02 E5 召回</span><span aria-hidden="true">→</span><span id="rerank-stage">03 重排筛选</span><span aria-hidden="true">→</span><span>04 DeepSeek 回答</span>
+      </div>
+
+      <section class="question-card" aria-labelledby="question-title">
+        <h2 id="question-title">向文献提问</h2>
+        <form id="question-form">
+          <label class="visually-hidden" for="question">输入文献问题</label>
+          <textarea id="question" rows="3" maxlength="2000" required placeholder="例如：构建 MJO 指数使用了哪些变量？"></textarea>
+          <div class="example-row"><span>试试</span><button class="example-button" type="button" data-question="构建 MJO 指数使用了哪些变量？">MJO 指数的输入变量</button><button class="example-button" type="button" data-question="RMM1 和 RMM2 表示什么？">RMM1 与 RMM2</button></div>
+          <div class="submit-row"><p>只检索在本机执行；生成答案会调用 DeepSeek。<span class="keyboard-hint">Ctrl / ⌘ + Enter 提交</span></p><div class="action-buttons"><button id="search-button" class="secondary-button" type="button" disabled>只检索</button><button id="ask-button" class="primary-button" type="submit" disabled>生成答案 <span aria-hidden="true">↗</span></button></div></div>
+        </form>
+      </section>
+
+      <p id="operation-status" class="operation-status" role="status" aria-live="polite">正在连接本地服务…</p>
+      <div id="error-message" class="error-message" role="alert" hidden></div>
+
+      <section id="result-panel" class="result-panel" aria-labelledby="result-title" aria-busy="false">
+        <div class="section-title result-heading"><h2 id="result-title">回答与依据</h2><span id="result-meta" class="subtle-label"></span></div>
+        <div id="empty-state" class="empty-state"><div class="empty-mark" aria-hidden="true">“</div><h3>让答案有据可查</h3><p>输入一个问题，先找到相关片段，再由模型组织回答。<br>每个参考片段都保留来源、页码和排名。</p></div>
+        <div id="answer-section" hidden><p id="answered-question" class="answered-question"></p><div class="answer-label"><span id="answer-kind">DeepSeek 回答</span><span class="answer-label-note">基于当前选中的文献片段</span></div><div id="answer-text" class="answer-text"></div></div>
+        <section id="references-section" class="references-section" aria-labelledby="references-title" hidden><div class="section-title"><h3 id="references-title">参考片段</h3><span id="references-count" class="subtle-label"></span></div><p class="field-note">展开查看原文；原排名与重排分数用于理解选取过程，分数不是正确率。</p><div id="references-list"></div></section>
+      </section>
+      <footer class="main-footer">文献索引保存在本机；页面不保存密钥或聊天记录。只有点击“生成答案”才会发送问题与选中的文字片段到 DeepSeek。</footer>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,3 +1,7 @@
 .venv/
 __pycache__/
 *.pyc
+.env
+/data/indexes/
+/data/model_cache/
+/data/rerank_examples/

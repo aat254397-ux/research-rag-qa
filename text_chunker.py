@@ -47,14 +47,19 @@ def chunk_document(
 
         chunk_text = document_text[start:end]
 
-        document_chunks.append({
+        document_chunk = {
             "chunk_id": chunk_id,
             "source": source_name,
             "path": source_path,
             "text": chunk_text,
             "start": start,
             "end": end,
-        })
+        }
+
+        if "page" in loaded_document:
+            document_chunk["page"] = loaded_document["page"]
+
+        document_chunks.append(document_chunk)
 
         if end >= len(document_text):
             break

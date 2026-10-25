@@ -12,11 +12,17 @@ def build_context(retrieval_results):
         start = retrieval_result["start"]
         end = retrieval_result["end"]
         text = retrieval_result["text"].strip()
+        page = retrieval_result.get("page")
+
+        if page is None:
+            location = f"位置：{start}-{end}"
+        else:
+            location = f"PDF页码：{page} | 页内字符位置：{start}-{end}"
 
         context_section = (
             f"[来源：{source} | "
             f"切片：{chunk_id} | "
-            f"位置：{start}-{end}]\n"
+            f"{location}]\n"
             f"{text}"
         )
 

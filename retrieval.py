@@ -1,5 +1,6 @@
 import math
 import string
+from collections import Counter
 from document_loader import load_document
 from text_chunker import chunk_document
 
@@ -76,15 +77,25 @@ def build_idf_weights(
     vocabulary,
     knowledge_chunks,
 ):
+    if vocabulary and not knowledge_chunks:
+        raise ValueError("knowledge_chunks must not be empty")
+
+    # 每个切片只分词一次；同一词在一片中重复出现也只计一次 DF。
+    term_document_counts = Counter()
+
+    for knowledge_chunk in knowledge_chunks:
+        term_document_counts.update(
+            set(tokenize_text(knowledge_chunk["text"]))
+        )
+
+    total_chunk_count = len(knowledge_chunks)
     idf_weights = {}
 
     for vocabulary_term in vocabulary:
-        idf_weights[vocabulary_term] = (
-            inverse_document_frequency(
-                vocabulary_term,
-                knowledge_chunks,
-            )
-        )
+        term_count = term_document_counts[vocabulary_term.lower()]
+        idf_weights[vocabulary_term] = math.log(
+            (total_chunk_count + 1) / (term_count + 1)
+        ) + 1
 
     return idf_weights
 
@@ -94,13 +105,11 @@ def text_to_tfidf_vector(
     vocabulary,
     idf_weights,
 ):
-    text_words = tokenize_text(text)
+    term_counts = Counter(tokenize_text(text))
     text_vector = []
 
     for vocabulary_term in vocabulary:
-        term_frequency = text_words.count(
-            vocabulary_term
-        )
+        term_frequency = term_counts[vocabulary_term]
 
         tfidf_value = (
             term_frequency
