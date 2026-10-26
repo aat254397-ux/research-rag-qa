@@ -18,7 +18,7 @@ from app import (
     build_document_qa_index,
     search_document_references,
 )
-from deepseek_client import create_deepseek_client
+from deepseek_client import create_deepseek_client, model_service_error_detail
 from embedding_retrieval import (
     DIMENSION,
     MODEL_NAME,
@@ -398,7 +398,7 @@ def ask_question(request: QuestionRequest, http_request: Request):
         except ValueError as error:
             raise HTTPException(
                 status_code=503,
-                detail="DeepSeek 配置不完整，请检查本地密钥和模型名。",
+                detail="DeepSeek 配置不完整，请检查本地密钥、模型名和 API 地址。",
             ) from error
     else:
         client = Mock()
@@ -428,9 +428,11 @@ def ask_question(request: QuestionRequest, http_request: Request):
             detail="等待模型服务响应超时，请稍后重试。",
         ) from error
     except APIError as error:
+        detail = model_service_error_detail(error)
+        LOGGER.warning("%s", detail)
         raise HTTPException(
             status_code=502,
-            detail="模型服务调用失败，请检查服务状态、账户和配置。",
+            detail=detail,
         ) from error
     except ValueError as error:
         # 暂时沿用现有问答函数的 ValueError 映射

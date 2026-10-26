@@ -3,8 +3,8 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from fastapi.testclient import TestClient
-from httpx2 import Request
-from openai import APIError, APITimeoutError
+from httpx2 import Request, Response
+from openai import APIConnectionError, APIError, APIStatusError, APITimeoutError
 
 from api import create_app
 
@@ -132,6 +132,55 @@ class TestDeepSeekApi(unittest.TestCase):
 
         self.assertEqual(response.status_code, 422)
         self.create_client.assert_not_called()
+
+    def test_reports_upstream_status_and_known_codes_without_private_body(self):
+        private_text = "sk-private-test-only 原始提示词与论文正文"
+        cases = [
+            (401, "InvalidApiKey", "密钥"),
+            (400, "Arrearage", "账单"),
+            (403, "AllocationQuota.FreeTierOnly", "用完即停"),
+            (403, "Model.AccessDenied", "权限"),
+            (404, "model_not_found", "模型 ID"),
+            (400, "invalid_parameter_error", "参数"),
+            (404, private_text, "API 地址"),
+        ]
+        for status, code, expected_hint in cases:
+            with self.subTest(status=status, code=code):
+                self.fake_client.reset_mock()
+                body = {"error": {"code": code, "message": private_text}}
+                self.fake_client.responses.create.side_effect = APIStatusError(
+                    private_text,
+                    response=Response(status, request=self.upstream_request),
+                    body=body,
+                )
+                with self.assertLogs("api", level="WARNING") as logs:
+                    with TestClient(api) as client:
+                        response = client.post("/ask", json=self.payload)
+
+                self.assertEqual(response.status_code, 502)
+                self.assertIn(f"上游 HTTP {status}", response.json()["detail"])
+                self.assertIn(expected_hint, response.json()["detail"])
+                self.assertNotIn(private_text, response.text)
+                self.assertNotIn(private_text, " ".join(logs.output))
+                if code != private_text:
+                    self.assertIn(code, response.json()["detail"])
+                self.fake_client.close.assert_called_once_with()
+
+    def test_reports_connection_failure_without_private_exception(self):
+        private_text = "sk-private-test-only 不应回显的连接异常"
+        self.fake_client.responses.create.side_effect = APIConnectionError(
+            message=private_text,
+            request=self.upstream_request,
+        )
+        with self.assertLogs("api", level="WARNING") as logs:
+            with TestClient(api) as client:
+                response = client.post("/ask", json=self.payload)
+
+        self.assertEqual(response.status_code, 502)
+        self.assertIn("无法连接", response.json()["detail"])
+        self.assertNotIn(private_text, response.text)
+        self.assertNotIn(private_text, " ".join(logs.output))
+        self.fake_client.close.assert_called_once_with()
 
 
 if __name__ == "__main__":
